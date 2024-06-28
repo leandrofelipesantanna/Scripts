@@ -2,55 +2,68 @@ import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image
-import img2pdf
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
-def convert_jpg_to_pdf(jpg_files):
-    for jpg_file in jpg_files:
-        if not os.path.isfile(jpg_file):
-            print(f"Arquivo {jpg_file} não encontrado!")
+def convert_image_to_pdf(image_files):
+    for image_file in image_files:
+        if not os.path.isfile(image_file):
+            print(f"Arquivo {image_file} não encontrado!")
             continue
 
         # Define o nome do arquivo PDF
-        pdf_file = os.path.splitext(jpg_file)[0] + ".pdf"
+        pdf_file = os.path.splitext(image_file)[0] + ".pdf"
 
         try:
-            # Abre a imagem JPG
-            image = Image.open(jpg_file)
-            # Converte a imagem para RGB (necessário para alguns formatos)
-            if image.mode in ("RGBA", "P"):
-                image = image.convert("RGB")
-            
-            # Salva a imagem como PDF
-            with open(pdf_file, "wb") as f:
-                f.write(img2pdf.convert(image.filename))
-            print(f"Conversão de {jpg_file} para {pdf_file} concluída com sucesso.")
-            
-            # Abre o arquivo PDF convertido
-            os.startfile(pdf_file)
+            # Abre a imagem com PIL
+            with Image.open(image_file) as img:
+                # Calcula o tamanho da página do PDF baseado no tamanho da imagem
+                width, height = img.size
+                c = canvas.Canvas(pdf_file, pagesize=(width, height))
+                c.drawImage(image_file, 0, 0, width, height)
+                c.save()
+                print(f"Conversão de {image_file} para {pdf_file} concluída com sucesso.")
+
+                # Abre o arquivo PDF convertido
+                os.startfile(pdf_file)
         except Exception as e:
-            print(f"Falha na conversão de {jpg_file} para {pdf_file}: {e}")
+            print(f"Falha na conversão de {image_file} para {pdf_file}: {e}")
+        finally:
+            try:
+                # Fecha o arquivo PDF se estiver aberto
+                if os.path.exists(pdf_file):
+                    os.close(pdf_file)
+            except Exception as e:
+                print(f"Falha ao fechar o arquivo PDF {pdf_file}: {e}")
 
 def select_files():
-    filetypes = [("JPEG files", "*.jpg"), ("All files", "*.*")]
-    files = filedialog.askopenfilenames(title="Escolha os arquivos JPEG", filetypes=filetypes)
+    filetypes = [("Image files", "*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tiff"), ("All files", "*.*")]
+    files = filedialog.askopenfilenames(title="Escolha os arquivos de imagem", filetypes=filetypes)
     if files:
-        convert_jpg_to_pdf(files)
+        convert_image_to_pdf(files)
         messagebox.showinfo("Conversão Concluída", "Os arquivos foram convertidos com sucesso. Os PDFs serão abertos em seguida.")
 
 def main():
     root = tk.Tk()
     root.withdraw()  # Esconde a janela principal
-    
-    # Mensagem de boas-vindas
-    messagebox.showinfo("Bem-vindo", "Olá! Selecione os arquivos JPEG que deseja converter para PDF.")
-    
-    while True:
-        # Selecionar arquivos para conversão
-        select_files()
-        
-        # Perguntar ao usuário se deseja realizar outra conversão
-        if not messagebox.askyesno("Continuar", "Deseja converter mais arquivos?"):
-            break
+
+    # Função para verificar se a mensagem de boas-vindas foi fechada
+    def show_welcome_message():
+        try:
+            messagebox.showinfo("Bem-vindo", "Olá! Selecione os arquivos de imagem que deseja converter para PDF.")
+            return True
+        except tk.TclError:
+            return False
+
+    # Mostrar mensagem de boas-vindas
+    if show_welcome_message():
+        while True:
+            # Selecionar arquivos para conversão
+            select_files()
+            
+            # Perguntar ao usuário se deseja realizar outra conversão
+            if not messagebox.askyesno("Continuar", "Deseja converter mais arquivos?"):
+                break
 
     root.destroy()  # Fechar a aplicação
 
